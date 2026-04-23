@@ -307,6 +307,18 @@
           </div>
 
           <div class="admin-section">
+            <div class="admin-label" style="color: var(--gold);">🔍 DIAGNOSTICS</div>
+            <div class="admin-title">Connection Health Check</div>
+            <div class="admin-description">
+              If players are saving but not appearing in the list above, tap Run Diagnostics to see what's failing. Safe to run — no data is changed.
+            </div>
+            <div class="admin-buttons">
+              <button class="btn" id="runDiagBtn">Run Diagnostics</button>
+            </div>
+            <div id="diagOutput" style="margin-top: 16px;"></div>
+          </div>
+
+          <div class="admin-section">
             <div class="admin-label" style="color: var(--danger);">DANGER ZONE</div>
             <div class="admin-title">Reset Everything</div>
             <div class="admin-description">Wipes all picks and results.</div>

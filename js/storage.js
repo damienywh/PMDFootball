@@ -165,13 +165,16 @@
       return keys;
     }
     try {
-      const parent = prefix.includes(':') ? prefix.split(':')[0] : prefix.replace(/:$/, '');
-      const url = `${firebaseBase()}/${namespace()}/${parent}.json?shallow=true`;
+      // Data is stored as flat keys at namespace root (e.g. `players:abc123`,
+      // `game:state`). The colon is part of the key NAME, not a path segment.
+      // So we fetch all top-level keys under the namespace and filter
+      // client-side. `shallow=true` returns key names only, no values.
+      const url = `${firebaseBase()}/${namespace()}.json?shallow=true`;
       const r = await authedFetch(url);
       if (!r.ok) return [];
       const data = await r.json();
       if (!data) return [];
-      return Object.keys(data).map(k => `${parent}:${k}`);
+      return Object.keys(data).filter(k => k.startsWith(prefix));
     } catch (e) {
       console.warn('Firebase list failed', e);
       return [];

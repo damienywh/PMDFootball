@@ -1,6 +1,8 @@
 # Agent Instructions — PMDF Football Predictor Deployment
 
-You (the agent) are helping Damien deploy **PMDF Football Predictor** to GitHub Pages at `https://damienywh.github.io/PMDFootball/`. A previous push left the repo with a broken structure (nested folder, or stale `Final Five` v1 files). This playbook does a clean redeployment.
+You (the agent) are helping Damien deploy **PMDF Football Predictor** to GitHub Pages at `https://damienywh.github.io/PMDFootball/`.
+
+**Secrets policy: do NOT add any secrets, passwords, or API keys to this file, the README, or any committed docs.** Credentials live only in `js/app.js` (which is client-side code anyway — Firebase Web API keys are designed to be exposed there). The admin password is a client-side gate; treat it as something the user sets privately in `js/app.js` and never print it in documentation, commit messages, or chat output.
 
 ---
 
@@ -75,10 +77,10 @@ grep -E "firebaseUrl|firebaseApiKey" js/app.js
 Should show:
 ```
 firebaseUrl: 'https://pmdfootball-default-rtdb.europe-west1.firebasedatabase.app',
-firebaseApiKey: 'AIzaSyCft3DVEqUEfiFYgx1SLd2PxokzrRtWB8o',
+firebaseApiKey: 'AIzaSy...' + 30+ chars,
 ```
 
-If `firebaseApiKey` is empty, stop and report — do NOT guess values.
+If `firebaseApiKey` is empty or just a placeholder (`'CHANGE_ME'`, `''`), stop and report — do NOT guess values.
 
 Check JS syntax:
 ```bash
@@ -140,7 +142,7 @@ cd ~/projects && \
   find . -mindepth 1 -not -path './.git' -not -path './.git/*' -delete && \
   unzip -o ~/Downloads/PMDFootball.zip -d . && \
   test -f .nojekyll && test -f index.html && \
-  grep -q "AIzaSyCft3DVEqUEfiFYgx1SLd2PxokzrRtWB8o" js/app.js && \
+  grep -qE "firebaseApiKey: 'AIzaSy[A-Za-z0-9_-]{30,}'" js/app.js && \
   git add -A && \
   git commit -m "Deploy PMDF Football Predictor — clean rebuild" && \
   git push origin main && \

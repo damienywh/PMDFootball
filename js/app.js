@@ -1028,6 +1028,9 @@
       toast('Table refreshed');
     };
 
+    // Diagnostics — surfaces the real state of Firebase so we can tell what's broken
+    document.getElementById('runDiagBtn').onclick = runDiagnostics;
+
     // Share modal close
     document.getElementById('modalCloseBtn').onclick = () => {
       document.getElementById('shareModal').style.display = 'none';
@@ -1089,6 +1092,176 @@
 
   async function saveGameState() {
     await Store.set('game:state', gameState, true);
+  }
+
+  // ===============================================================
+  // DIAGNOSTICS — full Firebase round-trip health check
+  // ===============================================================
+  async function runDiagnostics() {
+    const out = document.getElementById('diagOutput');
+    if (!out) return;
+
+    const lines = [];
+    const push = (status, title, detail) => {
+      const icon = status === 'ok' ? '✅' : status === 'fail' ? '❌' : status === 'skip' ? '⏭️' : 'ℹ️';
+      lines.push(`<div class="diag-row ${status}">
+        <div class="diag-row-head">${icon} <strong>${escapeHtml(title)}</strong></div>
+        ${detail ? `<div class="diag-row-detail">${detail}</div>` : ''}
+      </div>`);
+      out.innerHTML = lines.join('');
+    };
+
+    out.innerHTML = `<div class="diag-row">Running checks…</div>`;
+    lines.length = 0;
+
+    const cfg = window.PMD.Config || {};
+    const url = (cfg.firebaseUrl || '').replace(/\/$/, '');
+    const apiKey = cfg.firebaseApiKey || '';
+    const ns = (window.COMPETITION && window.COMPETITION.key) || 'default';
+
+    // CHECK 1: Firebase URL configured
+    if (url && url.includes('firebasedatabase.app')) {
+      push('ok', '1. Firebase URL configured', `<code>${escapeHtml(url.replace(/^https:\/\//, ''))}</code>`);
+    } else {
+      push('fail', '1. Firebase URL missing or malformed',
+        'Check <code>firebaseUrl</code> in <code>js/app.js</code>. Should be a <code>*.firebasedatabase.app</code> URL.');
+      return;
+    }
+
+    // CHECK 2: API key present
+    if (apiKey && /^AIzaSy[A-Za-z0-9_-]{20,}$/.test(apiKey)) {
+      push('ok', '2. API key looks valid', `${apiKey.slice(0, 10)}… (${apiKey.length} chars)`);
+    } else if (apiKey) {
+      push('warn', '2. API key is set but format looks odd', `Got ${apiKey.length} chars — expected 39. Check for stray quotes or spaces.`);
+    } else {
+      push('fail', '2. API key missing',
+        'Auth will be skipped. Players will only be saved locally. Set <code>firebaseApiKey</code> in <code>js/app.js</code>.');
+      return;
+    }
+
+    // CHECK 3: Anonymous auth
+    let idToken = null;
+    try {
+      const r = await fetch(`https://identitytoolkit.googleapis.com/v1/accounts:signUp?key=${apiKey}`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ returnSecureToken: true })
+      });
+      const data = await r.json();
+      if (r.ok && data.idToken) {
+        idToken = data.idToken;
+        push('ok', '3. Anonymous auth works', `Got token (${data.idToken.length} chars), uid: <code>${escapeHtml(data.localId || '')}</code>`);
+      } else {
+        const errCode = (data.error && data.error.message) || `HTTP ${r.status}`;
+        let hint = '';
+        if (errCode.includes('ADMIN_ONLY') || errCode.includes('OPERATION_NOT_ALLOWED')) {
+          hint = '<br>→ <strong>Fix:</strong> Firebase Console → Authentication → Sign-in method → enable <strong>Anonymous</strong>.';
+        } else if (errCode.includes('API_KEY_INVALID') || errCode.includes('API key not valid')) {
+          hint = '<br>→ <strong>Fix:</strong> Your API key is wrong. Firebase Console → Project settings → General → Web API Key.';
+        } else if (errCode.includes('CONFIGURATION_NOT_FOUND')) {
+          hint = '<br>→ <strong>Fix:</strong> Authentication isn\'t set up yet. Firebase Console → Authentication → Get started.';
+        }
+        push('fail', '3. Anonymous auth FAILED', `Error: <code>${escapeHtml(errCode)}</code>${hint}`);
+        return;
+      }
+    } catch (e) {
+      push('fail', '3. Anonymous auth — network error', `<code>${escapeHtml(String(e))}</code>`);
+      return;
+    }
+
+    // CHECK 4: Read namespace root
+    let namespaceKeys = [];
+    try {
+      const r = await fetch(`${url}/${ns}.json?shallow=true&auth=${encodeURIComponent(idToken)}`);
+      if (r.ok) {
+        const data = await r.json();
+        namespaceKeys = data ? Object.keys(data) : [];
+        if (namespaceKeys.length === 0) {
+          push('warn', `4. Namespace "${ns}" is EMPTY`,
+            'No data in Firebase at all. This means when players save, writes are failing — or nobody has saved yet. Continue to check 6.');
+        } else {
+          const preview = namespaceKeys.slice(0, 10).map(k => `<code>${escapeHtml(k)}</code>`).join(', ');
+          push('ok', `4. Namespace read OK`,
+            `Found <strong>${namespaceKeys.length}</strong> key(s): ${preview}${namespaceKeys.length > 10 ? ', …' : ''}`);
+        }
+      } else {
+        const txt = await r.text();
+        let hint = '';
+        if (r.status === 401 || r.status === 403) {
+          hint = '<br>→ <strong>Fix:</strong> Firebase rules blocking read. Set rules to <code>{ ".read": "auth != null", ".write": "auth != null" }</code>.';
+        }
+        push('fail', `4. Namespace read FAILED`, `HTTP ${r.status}: <code>${escapeHtml(txt.slice(0, 200))}</code>${hint}`);
+        return;
+      }
+    } catch (e) {
+      push('fail', '4. Namespace read — network error', `<code>${escapeHtml(String(e))}</code>`);
+      return;
+    }
+
+    // CHECK 5: Filter player keys
+    const playerKeys = namespaceKeys.filter(k => k.startsWith('players:'));
+    if (playerKeys.length > 0) {
+      const names = [];
+      for (const k of playerKeys.slice(0, 5)) {
+        try {
+          const r = await fetch(`${url}/${ns}/${encodeURIComponent(k)}.json?auth=${encodeURIComponent(idToken)}`);
+          if (r.ok) {
+            const raw = await r.json();
+            const parsed = typeof raw === 'string' ? JSON.parse(raw) : raw;
+            names.push(escapeHtml(parsed?.name || '(unnamed)'));
+          } else {
+            names.push(`<em>read failed for ${escapeHtml(k)}</em>`);
+          }
+        } catch {
+          names.push(`<em>parse error for ${escapeHtml(k)}</em>`);
+        }
+      }
+      push('ok', `5. Player data found in Firebase`,
+        `<strong>${playerKeys.length}</strong> player(s) saved: ${names.join(', ')}`);
+    } else {
+      push('warn', '5. No player records in Firebase',
+        `Checked ${namespaceKeys.length} key(s) under <code>${escapeHtml(ns)}</code> and none start with <code>players:</code>. If you tried to save a player, the write silently failed — most likely because rules block unauthenticated writes and auth wasn't working at save time. Try saving a player again now that auth is confirmed working.`);
+    }
+
+    // CHECK 6: Round-trip write test
+    const testKey = `_diag:test-${Date.now()}`;
+    const testValue = { ok: true, at: new Date().toISOString() };
+    try {
+      const w = await fetch(`${url}/${ns}/${encodeURIComponent(testKey)}.json?auth=${encodeURIComponent(idToken)}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(testValue)
+      });
+      if (!w.ok) {
+        const txt = await w.text();
+        push('fail', '6. Write test FAILED',
+          `HTTP ${w.status}: <code>${escapeHtml(txt.slice(0, 200))}</code><br>→ Rules probably block authed writes. Set <code>".write": "auth != null"</code>.`);
+        return;
+      }
+      // Read it back
+      const rb = await fetch(`${url}/${ns}/${encodeURIComponent(testKey)}.json?auth=${encodeURIComponent(idToken)}`);
+      if (!rb.ok) {
+        push('fail', '6. Write OK but read-back failed', `HTTP ${rb.status}`);
+      } else {
+        const got = await rb.json();
+        if (got && got.ok === true) {
+          push('ok', '6. Write + read round-trip OK',
+            'Wrote a test blob and read it back. Firebase is fully working.');
+          // Clean up
+          await fetch(`${url}/${ns}/${encodeURIComponent(testKey)}.json?auth=${encodeURIComponent(idToken)}`, { method: 'DELETE' });
+        } else {
+          push('warn', '6. Round-trip returned unexpected data', `<code>${escapeHtml(JSON.stringify(got).slice(0, 200))}</code>`);
+        }
+      }
+    } catch (e) {
+      push('fail', '6. Write test — network error', `<code>${escapeHtml(String(e))}</code>`);
+    }
+
+    // Final verdict
+    lines.push(`<div class="diag-row" style="margin-top: 16px; padding-top: 14px; border-top: 1px solid var(--border); font-size: 12px; color: var(--text-dim);">
+      Tip: if everything above is green but admin still shows <strong>No players yet</strong>, wait a few seconds and tap a nav link to refresh the page — the app polls every 4s.
+    </div>`);
+    out.innerHTML = lines.join('');
   }
 
   async function resetGame() {

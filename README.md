@@ -37,7 +37,7 @@ It'll work out of the box in **local-only mode** (each player sees their own pic
    window.PMD.Config = {
      firebaseUrl: 'https://pmdfootball-default-rtdb.europe-west1.firebasedatabase.app',
      firebaseApiKey: 'AIzaSy...YOUR_KEY_HERE',
-     adminPassword: 'finance',
+     adminPassword: 'CHANGE_ME',   // keep this private — change to anything you like
      siteUrl: 'https://damienywh.github.io/PMDFootball/',
    };
    ```
@@ -80,7 +80,7 @@ Most likely your API key isn't set in `js/app.js`, or Anonymous sign-in isn't en
 
 ## Admin
 
-Visit `/#/admin` and enter the password (default: `finance`, change in `js/app.js`).
+Visit `/#/admin` and enter the password. Set or change the password in `js/app.js` (field: `adminPassword`). Don't commit a real password to a public repo — edit it locally or via GitHub's file editor.
 
 Controls:
 - **Lock Game / Reopen** — switch between open (picks being made) and locked (visible to all, awaiting results).
@@ -180,7 +180,7 @@ PMDFootball/
 
 **"The live table shows old data"** — Click the phase indicator in admin to force a refresh, or wait 5 min for the cache to expire.
 
-**"My admin password doesn't work"** — Check `adminPassword` in `js/app.js`. Default is `finance`.
+**"My admin password doesn't work"** — Check the `adminPassword` value in `js/app.js`. You set it yourself; there is no default.
 
 **"I deployed but the styles aren't loading"** — Make sure `.nojekyll` is in the repo root. Without it, GitHub Pages runs Jekyll which can ignore files starting with underscores.
 
