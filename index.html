@@ -25,6 +25,11 @@
     <p>Predict the finish of the season. Highest score wins.</p>
     <input type="text" id="nameInput" placeholder="Your name" maxlength="20" autocomplete="off">
     <button class="btn btn-primary" id="enterBtn" style="width:100%;">Join Game →</button>
+    <div style="margin-top:28px; padding-top:20px; border-top: 1px solid var(--border); display:flex; gap:16px; justify-content:center; flex-wrap:wrap;">
+      <a class="nav-link" href="#/leaderboard" data-route="/leaderboard" style="font-size:13px;">🏆 Leaderboard</a>
+      <a class="nav-link" href="#/admin" data-route="/admin" style="font-size:13px;">⚙️ Admin</a>
+      <a class="nav-link" href="#/built" data-route="/built" style="font-size:13px;">🔧 How it's built</a>
+    </div>
   </div>
 
   <!-- ============ APP SHELL ============ -->
@@ -32,7 +37,7 @@
 
     <!-- Navbar -->
     <nav class="navbar">
-      <div class="nav-brand">PMDF <span class="accent">Football</span></div>
+      <div class="nav-brand">PMDF <span class="accent">Football</span> <span id="versionTag" style="font-size:10px;opacity:0.4;margin-left:6px;"></span></div>
       <div class="nav-links">
         <a class="nav-link" data-route="/">Game</a>
         <a class="nav-link leaderboard-cta" data-route="/leaderboard">🏆 Leaderboard</a>

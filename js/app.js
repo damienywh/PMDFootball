@@ -30,6 +30,9 @@
     siteUrl: 'https://damienywh.github.io/PMDFootball/',
   };
 
+  // Build version — update with each deploy
+  const VERSION = '238';
+
   // Shortcuts
   const Store = window.PMD.Storage;
   const Api = window.PMD.Api;
@@ -73,6 +76,10 @@
   async function init() {
     // Populate baseline table
     liveTableData = C.teams.map(t => ({ ...t, ...t.baseline }));
+
+    // Show build version in navbar
+    const vt = document.getElementById('versionTag');
+    if (vt) vt.textContent = 'v' + VERSION;
 
     // Load me
     me = Store.safeParse(await Store.get('me', false), null);
@@ -333,6 +340,14 @@
     const isLb = hash === '/leaderboard';
     const isBuilt = hash === '/built';
     const isGame = !isAdmin && !isLb && !isBuilt;
+
+    // Show app shell if we're on the name entry screen and navigating somewhere
+    const nameEntry = document.getElementById('nameEntryScreen');
+    const appShell = document.getElementById('appShell');
+    if (nameEntry && nameEntry.style.display !== 'none' && !isGame) {
+      nameEntry.style.display = 'none';
+      appShell.style.display = 'block';
+    }
 
     document.getElementById('page-game').style.display = isGame ? 'block' : 'none';
     document.getElementById('page-leaderboard').style.display = isLb ? 'block' : 'none';
