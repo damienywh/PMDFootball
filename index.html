@@ -1,0 +1,476 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>PMDF Football Predictor</title>
+
+<!-- Favicon: simple pixel football -->
+<link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Crect width='16' height='16' fill='%230A0E1A'/%3E%3Ccircle cx='8' cy='8' r='5' fill='%23F5F5F0'/%3E%3Cpath d='M8 4L10 6L9 8L7 8L6 6Z' fill='%231A1A2A'/%3E%3C/svg%3E">
+
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Anton&family=IBM+Plex+Sans:wght@300;400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600;700&display=swap" rel="stylesheet">
+
+<link rel="stylesheet" href="css/styles.css">
+</head>
+<body>
+
+<div class="container">
+
+  <!-- ============ NAME ENTRY SCREEN ============ -->
+  <div id="nameEntryScreen" class="name-entry" style="display:none;">
+    <div class="brand-label" style="margin-bottom:24px;">● PMDF FOOTBALL PREDICTOR ●</div>
+    <h2>Enter the <span class="accent">Game</span></h2>
+    <p>Predict the finish of the season. Highest score wins.</p>
+    <input type="text" id="nameInput" placeholder="Your name" maxlength="20" autocomplete="off">
+    <button class="btn btn-primary" id="enterBtn" style="width:100%;">Join Game →</button>
+  </div>
+
+  <!-- ============ APP SHELL ============ -->
+  <div id="appShell" style="display:none;">
+
+    <!-- Navbar -->
+    <nav class="navbar">
+      <div class="nav-brand">PMDF <span class="accent">Football</span></div>
+      <div class="nav-links">
+        <a class="nav-link" data-route="/">Game</a>
+        <a class="nav-link leaderboard-cta" data-route="/leaderboard">🏆 Leaderboard</a>
+        <a class="nav-link" data-route="/admin">Admin</a>
+        <a class="nav-link" data-route="/built">How it's built</a>
+        <span class="nav-player"><span class="dot"></span><span id="navPlayerName">—</span></span>
+      </div>
+    </nav>
+
+    <!-- ============ PAGE: GAME ============ -->
+    <div id="page-game" class="page">
+      <div class="header">
+        <div class="brand">
+          <div class="brand-label">● PMDF FOOTBALL PREDICTOR ●</div>
+          <div class="brand-title">PMDF <span class="accent">Predictor</span></div>
+          <div class="brand-sub" id="competitionTagline">Predict the final top 5 &amp; bottom 3</div>
+        </div>
+        <div class="header-meta">
+          <div><span class="phase-indicator" id="phaseIndicator">● OPEN</span></div>
+          <div style="margin-top:8px;">
+            <button class="btn btn-sm btn-ghost" id="changeNameBtn">Switch player →</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Scoring methodology card -->
+      <div class="scoring-panel">
+        <div class="scoring-panel-title">⭐ How scoring works</div>
+        <div class="scoring-panel-grid">
+          <div class="scoring-item">
+            <div class="scoring-points">5 pts</div>
+            <div class="scoring-desc">Team at exact right position (top 5 or bottom 3)</div>
+          </div>
+          <div class="scoring-item">
+            <div class="scoring-points">2 pts</div>
+            <div class="scoring-desc">Team in right group, wrong position</div>
+          </div>
+          <div class="scoring-item">
+            <div class="scoring-points">+4–6 pts</div>
+            <div class="scoring-desc">Each bonus tiebreaker you nail</div>
+          </div>
+          <div class="scoring-item">
+            <div class="scoring-points">~58 max</div>
+            <div class="scoring-desc">If you somehow call every single one right</div>
+          </div>
+        </div>
+      </div>
+
+      <div class="main-grid">
+        <!-- Live table panel -->
+        <div class="panel">
+          <div class="panel-header">
+            <div>
+              <div class="panel-title">Live Table</div>
+              <div class="panel-subtitle" id="tableSubtitle">Loading…</div>
+            </div>
+          </div>
+          <div class="panel-body">
+            <div class="live-table-wrap">
+              <div id="liveTable"></div>
+            </div>
+            <div style="margin-top: 12px; padding-top: 12px; border-top: 1px solid var(--border); font-family: 'IBM Plex Mono', monospace; font-size: 10px; color: var(--text-muted); letter-spacing: 1px;">
+              GREEN ROW = TOP 5 &nbsp;·&nbsp; RED ROW = BOTTOM 3 &nbsp;·&nbsp; AVATARS: TOP SCORER PER CLUB
+            </div>
+          </div>
+        </div>
+
+        <!-- Predictions panel -->
+        <div class="panel">
+        <div class="pred-board-header">
+            <div>
+              <div class="panel-title">Your Picks</div>
+              <div class="panel-subtitle">Tap a team, tap a slot — ranking matters</div>
+            </div>
+          </div>
+
+          <div class="slots-section">
+            <div id="certaintyNotice" class="certainty-notice" style="display:none;"></div>
+
+            <div class="slots-label">
+              <span>TOP FIVE<span class="highlight-top"> ● CHAMPIONS LEAGUE</span></span>
+              <span class="progress" id="topProgress">0 / 5</span>
+            </div>
+            <div class="slots-row top" id="topSlots"></div>
+
+            <div class="slots-label">
+              <span>BOTTOM THREE<span class="highlight-bot"> ● RELEGATION</span></span>
+              <span class="progress" id="botProgress">0 / 3</span>
+            </div>
+            <div class="slots-row bot" id="botSlots"></div>
+          </div>
+
+          <div class="pool-section">
+            <div class="slots-label">
+              <span>TEAM POOL</span>
+              <span style="color: var(--text-muted);">Tap to select</span>
+            </div>
+            <div class="pool-grid" id="teamPool"></div>
+          </div>
+
+          <!-- Tiebreakers -->
+          <div class="tiebreakers">
+            <div class="tiebreakers-title">BONUS PREDICTIONS · TIEBREAKERS</div>
+            <div class="tiebreakers-subtitle">Extra points — most auto-tracked from live data</div>
+            <div id="tiebreakerList"></div>
+          </div>
+
+          <div class="actions-row">
+            <div class="save-status" id="saveStatus">—</div>
+            <div style="display: flex; gap: 10px; flex-wrap: wrap;">
+              <button class="btn btn-ghost" id="shareBtn">Share →</button>
+              <button class="btn btn-ghost btn-danger" id="clearBtn">Clear</button>
+              <button class="btn btn-primary" id="saveBtn">Save Picks</button>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Roster + Leaderboard CTA -->
+      <div class="section">
+        <div class="section-title">
+          <span class="accent-bar"></span>
+          <span id="rosterTitle">The Players</span>
+          <span class="count" id="rosterCount"></span>
+          <a class="nav-link leaderboard-cta" data-route="/leaderboard" style="margin-left: auto;">🏆 View Leaderboard →</a>
+        </div>
+        <div id="rosterGrid" class="roster-grid"></div>
+      </div>
+    </div>
+
+    <!-- ============ PAGE: LEADERBOARD ============ -->
+    <div id="page-leaderboard" class="page" style="display:none;">
+      <div class="header">
+        <div class="brand">
+          <div class="brand-label">● LEADERBOARD ●</div>
+          <div class="brand-title">The <span class="accent">Board</span></div>
+          <div class="brand-sub" id="lbSubtitle">Who's ahead, who's behind</div>
+        </div>
+        <div class="header-meta">
+          <div><span class="phase-indicator" id="phaseIndicator2">● OPEN</span></div>
+        </div>
+      </div>
+
+      <div id="leaderboardSection" style="display:none;">
+        <div class="section-title">
+          <span class="accent-bar"></span>
+          <span>Final Scoreboard</span>
+          <span class="count" id="lbCount"></span>
+        </div>
+        <div class="leaderboard" id="leaderboard"></div>
+      </div>
+
+      <div id="liveLeaderboardSection" style="display:none;">
+        <div class="section-title">
+          <span class="accent-bar"></span>
+          <span>Projected Leaderboard</span>
+          <span class="count" style="color: var(--text-muted);">— scored against the current live table</span>
+        </div>
+        <div class="info-card" style="margin-bottom: 20px;">
+          <div class="title" style="color: var(--gold);">● PROVISIONAL</div>
+          <div class="body">Scores below assume the league finishes exactly as it stands right now. Rankings will shift as the final games play out.</div>
+        </div>
+        <div class="leaderboard" id="projectedLeaderboard"></div>
+      </div>
+
+      <div class="section">
+        <div class="section-title">
+          <span class="accent-bar"></span>
+          <span id="lbRosterTitle">All Predictions</span>
+          <span class="count" id="lbRosterCount"></span>
+        </div>
+        <div id="lbRosterGrid" class="roster-grid"></div>
+      </div>
+    </div>
+
+    <!-- ============ PAGE: ADMIN ============ -->
+    <div id="page-admin" class="page" style="display:none;">
+
+      <div id="adminLogin" class="admin-login">
+        <div class="admin-login-icon">● RESTRICTED ●</div>
+        <h2>Admin Access</h2>
+        <p>Host controls for phase management and results entry.</p>
+        <input type="password" id="adminPwInput" placeholder="password" autocomplete="off">
+        <button class="btn btn-primary" id="adminLoginBtn" style="width:100%;">Enter</button>
+        <div class="admin-error" id="adminError"></div>
+      </div>
+
+      <div id="adminControls" style="display:none;">
+        <div class="header">
+          <div class="brand">
+            <div class="brand-label">● ADMIN ● HOST CONTROLS</div>
+            <div class="brand-title">Control <span class="accent">Room</span></div>
+            <div class="brand-sub">Phase management, results entry, game reset</div>
+          </div>
+          <div class="header-meta">
+            <div><span class="phase-indicator" id="phaseIndicator3">● OPEN</span></div>
+            <div style="margin-top:8px;">
+              <button class="btn btn-sm btn-ghost" id="adminLogoutBtn">Sign out →</button>
+            </div>
+          </div>
+        </div>
+
+        <div class="admin-panel">
+          <div class="admin-section">
+            <div class="admin-label">PHASE</div>
+            <div class="admin-title">Lock / Reopen</div>
+            <div class="admin-description">
+              Lock when everyone's submitted — picks become visible to all.
+            </div>
+            <div class="admin-buttons">
+              <button class="btn" id="lockGameBtn">Lock Game</button>
+              <button class="btn" id="reopenBtn">Reopen for Picks</button>
+            </div>
+          </div>
+
+          <div class="admin-section">
+            <div class="admin-label">RESULTS</div>
+            <div class="admin-title">Final Table</div>
+            <div class="admin-description">
+              Fill these when the season ends, or tap "Pre-fill from Live Table" to copy current standings.
+            </div>
+
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px; margin-bottom: 16px;">
+              <div>
+                <div style="font-family: 'IBM Plex Mono', monospace; font-size: 11px; color: var(--pitch); letter-spacing: 1.5px; margin-bottom: 8px;">FINAL TOP 5</div>
+                <div id="resultsTopSlots" class="slots-row top"></div>
+              </div>
+              <div>
+                <div style="font-family: 'IBM Plex Mono', monospace; font-size: 11px; color: var(--danger); letter-spacing: 1.5px; margin-bottom: 8px;">FINAL BOTTOM 3</div>
+                <div id="resultsBotSlots" class="slots-row bot"></div>
+              </div>
+            </div>
+
+            <div class="pool-section" style="padding: 16px 0 0; border-top: 1px solid var(--border);">
+              <div class="slots-label"><span>TEAM POOL</span></div>
+              <div class="pool-grid" id="adminTeamPool"></div>
+            </div>
+
+            <div class="admin-buttons" style="margin-top: 20px;">
+              <button class="btn btn-primary" id="finalizeBtn">Finalize &amp; Score</button>
+              <button class="btn" id="prefillBtn">Pre-fill from Live Table</button>
+            </div>
+          </div>
+
+          <div class="admin-section">
+            <div class="admin-label">TIEBREAKERS</div>
+            <div class="admin-title">Bonus Outcomes</div>
+            <div class="admin-description">
+              Auto-fill uses live data for rank/goals and the current vote leader for Most Hated. Golden Boot stays manual.
+            </div>
+            <div id="adminTbList"></div>
+            <div class="admin-buttons" style="margin-top: 10px;">
+              <button class="btn" id="autoTbBtn">Auto-fill</button>
+            </div>
+          </div>
+
+          <div class="admin-section">
+            <div class="admin-label">LIVE DATA</div>
+            <div class="admin-title">Refresh Table</div>
+            <div class="admin-buttons">
+              <button class="btn" id="refreshTableBtn">Force Refresh</button>
+            </div>
+          </div>
+
+          <div class="admin-section">
+            <div class="admin-label">PLAYERS</div>
+            <div class="admin-title">Manage Players</div>
+            <div class="admin-description">
+              Delete test accounts or dropped players. No undo.
+            </div>
+            <div id="adminPlayerList"></div>
+          </div>
+
+          <div class="admin-section">
+            <div class="admin-label" style="color: var(--danger);">DANGER ZONE</div>
+            <div class="admin-title">Reset Everything</div>
+            <div class="admin-description">Wipes all picks and results.</div>
+            <div class="admin-buttons">
+              <button class="btn btn-danger" id="resetGameBtn">Reset Entire Game</button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ============ PAGE: HOW IT'S BUILT ============ -->
+    <div id="page-built" class="page" style="display:none;">
+      <div class="header">
+        <div class="brand">
+          <div class="brand-label">● HOW THIS WAS BUILT ●</div>
+          <div class="brand-title">Vibe-<span class="accent">coded</span></div>
+          <div class="brand-sub">This whole site was built by chatting with an AI. Here's what made that conversation actually produce something usable.</div>
+        </div>
+      </div>
+
+      <div class="built-intro">
+        <p>
+          The site you're looking at — the pixel avatars, the live table, the Firebase sync, the scoring engine, the 🏆 leaderboard — was built end-to-end by having a conversation with Claude. No templates, no boilerplate repo, no Stack Overflow. Just prompts and iteration.
+        </p>
+        <p>
+          The interesting thing isn't that AI can write code. It's that <strong>the quality of what you get is directly shaped by the quality of what you ask for.</strong> Below are the six prompting moves that actually moved this project forward, with the real prompts used.
+        </p>
+      </div>
+
+      <div class="section-title">
+        <span class="accent-bar"></span>
+        <span>Six things that worked</span>
+      </div>
+
+      <div class="built-lessons">
+
+        <div class="built-lesson">
+          <div class="built-lesson-num">01</div>
+          <div class="built-lesson-body">
+            <h3>Start with the actual goal, not the solution</h3>
+            <p>Bad: "build me a football app". Good: describe the real user need, the interaction, and the context.</p>
+            <div class="built-quote">
+              "We want to create a simple team Premier League betting game based on the final 5 fixtures of this season. A ranking game based on everyone's prediction of the top 5 and bottom 3. I want a simple UI/website where someone can input their names, see the current standings, and drag around the team badges."
+            </div>
+            <p class="built-why"><strong>Why it worked:</strong> Contains the <em>who</em> (group of friends/colleagues), <em>what</em> (rank top 5 + bottom 3), <em>when</em> (final 5 fixtures), and <em>shape</em> (drag interaction). Claude doesn't have to guess; it can get on with it.</p>
+          </div>
+        </div>
+
+        <div class="built-lesson">
+          <div class="built-lesson-num">02</div>
+          <div class="built-lesson-body">
+            <h3>Numbered requirements get numbered answers</h3>
+            <p>When you want multiple things, make them a list. It's easier for the AI to track every item and for you to check what was missed.</p>
+            <div class="built-quote">
+              "1. Table needs more stats, esp goals, goal difference.<br>
+              2. Certain outcomes (based on games left) are known. Bottom 2 is locked mathematically. Prefill this.<br>
+              3. Badge icons should be more prominent — the main feature of the UI.<br>
+              4. Gamify more betting tiebreakers — something a data source can auto-track.<br>
+              5. Need a clear link to the leaderboard and clarity on where bets are saved.<br>
+              6. Share it as a zip so I can push to GitHub.<br>
+              7. Rename it PMD Sports Predictor.<br>
+              8. Code it so we can rejig for the upcoming World Cup.<br>
+              9. Include a share feature for a chat message + site link."
+            </div>
+            <p class="built-why"><strong>Why it worked:</strong> Nine completely different asks landed in one message. Because they were numbered, Claude could hit every single one and reply with a matching checklist. Without the numbering, at least three would have been missed.</p>
+          </div>
+        </div>
+
+        <div class="built-lesson">
+          <div class="built-lesson-num">03</div>
+          <div class="built-lesson-body">
+            <h3>Reference real things for style and shape</h3>
+            <p>The fastest way to describe an aesthetic is to point at one. Cultural references, brand names, and specific products do more work than adjectives.</p>
+            <div class="built-quote">
+              "Can you design pixel player top-half shots? Like Habbo Hotel-like avatars, based on the leading scorer of each club, wearing a jersey of that colour?"
+            </div>
+            <p class="built-why"><strong>Why it worked:</strong> "Habbo Hotel" is a one-word aesthetic brief. It conveys: chunky pixels, friendly proportions, saturated colours, 3/4 view, half-body shot. Three adjectives couldn't do that. Pair it with specific constraints ("top half", "leading scorer", "jersey colour") and you get original work in the right direction.</p>
+          </div>
+        </div>
+
+        <div class="built-lesson">
+          <div class="built-lesson-num">04</div>
+          <div class="built-lesson-body">
+            <h3>Push back when the logic doesn't add up</h3>
+            <p>AI will confidently ship something that's internally inconsistent. The fix is to call it out specifically — don't just say "this feels wrong".</p>
+            <div class="built-quote">
+              "Why did you lock Man City and Arsenal's positions in the top 5 as a done deal? Wait wait — I want you to double-check. In the 12345 boxes, ranking matters, yeah? So if Man City is at 1, it means the user predicts a first-place finish. That isn't locked in!"
+            </div>
+            <p class="built-why"><strong>Why it worked:</strong> The correction is concrete ("rank position #1 ≠ 'in top 5'"). It identifies the category error instead of just saying "looks off". Claude had to re-examine the feature, remove it, and switch to informational-only display. Whole game-logic fix from one question.</p>
+          </div>
+        </div>
+
+        <div class="built-lesson">
+          <div class="built-lesson-num">05</div>
+          <div class="built-lesson-body">
+            <h3>Bring creative ideas — the AI won't invent your vibe</h3>
+            <p>AI is great at execution, average at taste. The best ideas in this site came from one-line creative suggestions.</p>
+            <div class="built-quote">
+              "Maybe a funny stat could be to ask 'who is your least favourite team?' then followed by 'which is PMDF's most hated team?' Assign points on that."
+            </div>
+            <p class="built-why"><strong>Why it worked:</strong> Introduces a social mechanic the AI wouldn't have dreamt up on its own. The prompt includes the question format AND the scoring implication, so Claude can wire it up directly (every player votes → majority wins points → creates a reading-the-room mini-game).</p>
+          </div>
+        </div>
+
+        <div class="built-lesson">
+          <div class="built-lesson-num">06</div>
+          <div class="built-lesson-body">
+            <h3>Ask for subtraction, not just addition</h3>
+            <p>Left alone, AI tends to over-build. UI accretes, copy gets longer, "helpful" labels pile up. Explicitly ask for cleanup with a clear rule.</p>
+            <div class="built-quote">
+              "Clean up the clutter and unnecessary UI elements and text. If they have no added value to the user's gameplay or the admin's oversight, remove."
+            </div>
+            <p class="built-why"><strong>Why it worked:</strong> Gives the AI a specific rule it can apply ("must add value to gameplay or oversight") and delegates taste decisions. The storage-mode pill, the "where your picks are saved" explainer, the redundant scoring-info subtitle — all gone in one pass.</p>
+          </div>
+        </div>
+
+      </div>
+
+      <div class="section-title">
+        <span class="accent-bar"></span>
+        <span>Try it yourself</span>
+      </div>
+      <div class="built-intro">
+        <p>
+          Pick a small, real problem you have — a tracker, a calculator, a little tool your team keeps doing by hand. Open <a href="https://claude.ai" target="_blank" rel="noopener" style="color:var(--accent)">claude.ai</a> and start with a goal, not a spec. Iterate in small chunks. Push back when something's off. Ask for cleanup at the end. You don't need to be a developer to make this work — you need to be a clear thinker about what you actually want.
+        </p>
+        <p>
+          Fun stats about this site: ~20 conversational turns, 15 files, ~140KB total, 0 bundlers, 0 frameworks, 1 embarrassing deployment loop, 0 stack traces understood by the person driving.
+        </p>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Share modal -->
+<div id="shareModal" class="modal-backdrop" style="display:none;">
+  <div class="modal">
+    <h3>Share your picks</h3>
+    <p style="color: var(--text-dim); font-size: 13px; margin-bottom: 16px;">
+      Copy the text below to send via message, Slack, or any chat.
+    </p>
+    <div class="modal-preview" id="modalPreview"></div>
+    <div style="display: flex; gap: 10px; justify-content: flex-end;">
+      <button class="btn" id="modalCloseBtn">Close</button>
+      <button class="btn btn-primary" id="modalCopyBtn">Copy Text</button>
+    </div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<!-- ============ SCRIPTS ============ -->
+<!-- Load competition config first -->
+<!-- To swap competitions, change this one line to e.g. data/worldcup-2026.js -->
+<script src="data/epl-2025-26.js"></script>
+
+<!-- Load helpers -->
+<script src="js/avatars.js"></script>
+<script src="js/storage.js"></script>
+<script src="js/api.js"></script>
+
+<!-- Load main app last -->
+<script src="js/app.js"></script>
+
+</body>
+</html>
