@@ -824,21 +824,45 @@ body {
   vertical-align: middle;
 }
 
-/* Browse-only link on the gate screen */
+/* Browse-only button on the gate — proper secondary button, not a quiet link */
 .browse-only-link {
+  display: block;
+  width: 100%;
+  text-align: center;
+  color: var(--text);
+  background: var(--surface-2);
+  border: 1px solid var(--border);
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 12px;
+  letter-spacing: 1.5px;
+  text-transform: uppercase;
+  text-decoration: none;
+  margin-top: 12px;
+  padding: 14px 16px;
+  border-radius: 4px;
+  font-weight: 600;
+  transition: all 0.15s ease;
+  cursor: pointer;
+  box-sizing: border-box;
+}
+.browse-only-link:hover {
+  color: var(--accent);
+  border-color: var(--accent);
+  background: var(--surface);
+}
+.browse-only-link:active { transform: translateY(1px); }
+.browse-only-hint {
   display: block;
   text-align: center;
   color: var(--text-muted);
   font-family: 'IBM Plex Mono', monospace;
-  font-size: 11px;
+  font-size: 10px;
   letter-spacing: 1px;
-  text-transform: uppercase;
-  text-decoration: none;
   margin-top: 18px;
   padding-top: 18px;
   border-top: 1px solid var(--border);
+  text-transform: uppercase;
 }
-.browse-only-link:hover { color: var(--accent); }
 
 /* ============ INLINE NAME ENTRY CARD ============ */
 .inline-name-entry {

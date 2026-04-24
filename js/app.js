@@ -17,7 +17,7 @@
   // VERSION — bump this every time the code changes.
   // Shown in the nav so users can tell which build they're looking at.
   // ===============================================================
-  const VERSION = 'v0.5.1';
+  const VERSION = 'v0.5.2';
 
   window.PMD = window.PMD || {};
   window.PMD.Config = {

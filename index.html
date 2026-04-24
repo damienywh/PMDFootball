@@ -6,7 +6,7 @@
 <title>PMDF Football Predictor</title>
 
 <!-- Favicon: simple pixel football -->
-<link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Crect width='16' height='16' fill='%230A0E1A'/%3E%3Ccircle cx='8' cy='8' r='5' fill='%23F5F5F0'/%3E%3Cpath d='M8 4L10 6L9 8L7 8L6 6Z' fill='%231A1A2A'/%3E%3C/svg%3E">
+<link rel="icon" type="image/svg+xml" href="data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCAzMiAzMiI+PGNpcmNsZSBjeD0iMTYiIGN5PSIxNiIgcj0iMTQiIGZpbGw9IiNmZmZmZmYiIHN0cm9rZT0iIzBBMEUxQSIgc3Ryb2tlLXdpZHRoPSIxLjUiLz48cG9seWdvbiBwb2ludHM9IjE2LDggMjAuNywxMS40IDE4LjksMTcgMTMuMSwxNyAxMS4zLDExLjQiIGZpbGw9IiMwQTBFMUEiLz48bGluZSB4MT0iMTYiIHkxPSIyIiB4Mj0iMTYiIHkyPSI4IiBzdHJva2U9IiMwQTBFMUEiIHN0cm9rZS13aWR0aD0iMS4yIi8+PGxpbmUgeDE9IjI3LjUiIHkxPSIxMSIgeDI9IjIwLjciIHkyPSIxMS40IiBzdHJva2U9IiMwQTBFMUEiIHN0cm9rZS13aWR0aD0iMS4yIi8+PGxpbmUgeDE9IjIzLjUiIHkxPSIyNSIgeDI9IjE4LjkiIHkyPSIxNyIgc3Ryb2tlPSIjMEEwRTFBIiBzdHJva2Utd2lkdGg9IjEuMiIvPjxsaW5lIHgxPSI4LjUiIHkxPSIyNSIgeDI9IjEzLjEiIHkyPSIxNyIgc3Ryb2tlPSIjMEEwRTFBIiBzdHJva2Utd2lkdGg9IjEuMiIvPjxsaW5lIHgxPSI0LjUiIHkxPSIxMSIgeDI9IjExLjMiIHkyPSIxMS40IiBzdHJva2U9IiMwQTBFMUEiIHN0cm9rZS13aWR0aD0iMS4yIi8+PC9zdmc+">
 
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -29,7 +29,8 @@
     <p>Predict the finish of the season. Highest score wins.</p>
     <input type="text" id="nameInput" placeholder="Your name" maxlength="20" autocomplete="off">
     <button class="btn btn-primary" id="enterBtn" style="width:100%;">Join Game →</button>
-    <a href="#" id="browseOnlyBtn" class="browse-only-link">Just browsing — view leaderboard & admin</a>
+    <div class="browse-only-hint">Or check out the game without joining</div>
+    <a href="#" id="browseOnlyBtn" class="browse-only-link">👀 Browse leaderboard & how it's built</a>
   </div>
 
   <!-- ============ APP SHELL (shown after entering or browsing) ============ -->
@@ -373,7 +374,7 @@
 
       <div class="section-title">
         <span class="accent-bar"></span>
-        <span>Six things that worked</span>
+        <span>Seven things that worked</span>
       </div>
 
       <div class="built-lessons">
@@ -458,6 +459,18 @@
           </div>
         </div>
 
+        <div class="built-lesson">
+          <div class="built-lesson-num">07</div>
+          <div class="built-lesson-body">
+            <h3>Don't explain the plumbing — describe the problem</h3>
+            <p>The hardest part of this app is the backend: real-time sync across every player's device so when one person saves, everyone else sees it. That usually means databases, APIs, authentication. I have zero backend experience. The prompt that unlocked it wasn't technical — it just named the symptom.</p>
+            <div class="built-quote">
+              "My security rules are defined as public, so anyone can steal, modify, or delete data in my database. Can you help me as much as you can?"
+            </div>
+            <p class="built-why"><strong>Why it worked:</strong> I described what I was seeing (a Firebase warning banner) and what I was worried about (data theft). I didn't say "add OAuth + JWT tokens + per-user rules." I didn't even know those words existed. The AI translated the problem into a real solution — anonymous auth, rules that require authentication, a setup walkthrough. Describing <em>symptoms and goals</em> in your own words beats trying to name technology you don't know.</p>
+          </div>
+        </div>
+
       </div>
 
       <div class="section-title">
@@ -469,7 +482,7 @@
           Pick a small, real problem you have — a tracker, a calculator, a little tool your team keeps doing by hand. Open <a href="https://claude.ai" target="_blank" rel="noopener" style="color:var(--accent)">claude.ai</a> and start with a goal, not a spec. Iterate in small chunks. Push back when something's off. Ask for cleanup at the end. You don't need to be a developer to make this work — you need to be a clear thinker about what you actually want.
         </p>
         <p>
-          Fun stats about this site: ~20 conversational turns, 15 files, ~140KB total, 0 bundlers, 0 frameworks, 1 embarrassing deployment loop, 0 stack traces understood by the person driving.
+          Fun stats about this site: ~30 conversational turns, 15 files, ~160KB total, 0 bundlers, 0 frameworks, 2 embarrassing deployment loops, 0 stack traces understood by the person driving.
         </p>
       </div>
     </div>
