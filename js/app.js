@@ -17,7 +17,7 @@
   // VERSION — bump this every time the code changes.
   // Shown in the nav so users can tell which build they're looking at.
   // ===============================================================
-  const VERSION = 'v0.5.0';
+  const VERSION = 'v0.5.1';
 
   window.PMD = window.PMD || {};
   window.PMD.Config = {
@@ -1076,27 +1076,73 @@
     }
 
     const total = C.topN + C.botN;
-    root.innerHTML = allPlayers.map(p => {
+
+    // Sort latest-first so duplicate cleanup is obvious:
+    // the most-recently-updated submission of any duplicated name is at the top.
+    // Players who never saved picks (no updatedAt) fall to the bottom.
+    const sorted = allPlayers.slice().sort((a, b) => {
+      const ta = a.updatedAt || a.joinedAt || 0;
+      const tb = b.updatedAt || b.joinedAt || 0;
+      return tb - ta;
+    });
+
+    // Count how many times each normalised name appears so we can flag dupes.
+    const nameCounts = {};
+    sorted.forEach(p => {
+      const key = (p.name || '').trim().toLowerCase();
+      nameCounts[key] = (nameCounts[key] || 0) + 1;
+    });
+
+    // Within a duplicate group, mark the LATEST as "KEEP" and the rest as "OLDER".
+    const seenLatest = {};
+    sorted.forEach(p => {
+      const key = (p.name || '').trim().toLowerCase();
+      if (nameCounts[key] > 1 && !seenLatest[key]) {
+        seenLatest[key] = p.id;
+      }
+    });
+
+    const fmtDateTime = (ts) => {
+      if (!ts) return '—';
+      const d = new Date(ts);
+      return d.toLocaleString('en-GB', {
+        day: 'numeric', month: 'short',
+        hour: '2-digit', minute: '2-digit', hour12: false,
+      });
+    };
+
+    root.innerHTML = sorted.map(p => {
       const topFilled = (p.top || []).filter(Boolean).length;
       const botFilled = (p.bot || []).filter(Boolean).length;
       const complete = (topFilled + botFilled) === total;
       const tbCount = Object.keys(p.tiebreakers || {}).length;
       const isMe = !!(me && p.id === me.id);
       const isLate = !!(gameState.firstLockedAt && p.joinedAt && p.joinedAt > gameState.firstLockedAt);
-      const joinedDate = p.joinedAt
-        ? new Date(p.joinedAt).toLocaleDateString('en-GB', { day: 'numeric', month: 'short' })
-        : 'pre-lock';
+
+      const key = (p.name || '').trim().toLowerCase();
+      const isDupe = nameCounts[key] > 1;
+      const isLatest = seenLatest[key] === p.id;
+      let dupeBadge = '';
+      if (isDupe) {
+        dupeBadge = isLatest
+          ? '<span class="dupe-badge keep">KEEP — LATEST</span>'
+          : '<span class="dupe-badge older">OLDER COPY</span>';
+      }
+
+      const savedStamp = p.updatedAt ? fmtDateTime(p.updatedAt) : '<span style="color:var(--text-muted)">never saved</span>';
+
       return `
-        <div class="admin-player-row ${isLate ? 'late' : ''}">
+        <div class="admin-player-row ${isLate ? 'late' : ''} ${isDupe && !isLatest ? 'older-dupe' : ''}">
           <div>
             <div class="admin-player-name">
               ${escapeHtml(p.name)}${isMe ? ' <span style="color:var(--accent);font-size:10px;">(YOU)</span>' : ''}
               ${isLate ? '<span class="late-badge">LATE</span>' : ''}
+              ${dupeBadge}
             </div>
             <div class="admin-player-meta">
               ${complete ? '<span style="color:var(--pitch)">● COMPLETE</span>' : `<span style="color:var(--text-dim)">○ ${topFilled + botFilled}/${total} SLOTS</span>`}
               · ${tbCount} tiebreakers
-              · joined ${joinedDate}
+              · <strong style="color:var(--text)">saved ${savedStamp}</strong>
               · ID: <code>${p.id}</code>
             </div>
           </div>
