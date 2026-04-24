@@ -13,6 +13,12 @@
   // ===============================================================
   // CONFIG (edit these to deploy)
   // ===============================================================
+  // ===============================================================
+  // VERSION — bump this every time the code changes.
+  // Shown in the nav so users can tell which build they're looking at.
+  // ===============================================================
+  const VERSION = 'v0.4.0';
+
   window.PMD = window.PMD || {};
   window.PMD.Config = {
     // Firebase Realtime Database URL. Leave empty for local-only mode.
@@ -29,9 +35,6 @@
     // Site URL — used in share messages
     siteUrl: 'https://damienywh.github.io/PMDFootball/',
   };
-
-  // Build version — update with each deploy
-  const VERSION = '238';
 
   // Shortcuts
   const Store = window.PMD.Storage;
@@ -77,10 +80,6 @@
     // Populate baseline table
     liveTableData = C.teams.map(t => ({ ...t, ...t.baseline }));
 
-    // Show build version in navbar
-    const vt = document.getElementById('versionTag');
-    if (vt) vt.textContent = 'v' + VERSION;
-
     // Load me
     me = Store.safeParse(await Store.get('me', false), null);
 
@@ -88,20 +87,61 @@
     const gsRaw = await Store.get('game:state', true);
     if (gsRaw) gameState = Object.assign(gameState, Store.safeParse(gsRaw, {}));
 
-    if (!me || !me.id) {
-      showNameEntry();
-    } else {
-      await enterGame();
-    }
+    // Set version pill in nav
+    const vEl = document.getElementById('navVersion');
+    if (vEl) vEl.textContent = VERSION;
+
+    // App shell is always visible — no more gating on `me`.
+    // The Game page shows an inline name-entry card when `me` is null;
+    // Leaderboard / Admin / How it's built work fine without a player.
+    await enterGame();
   }
 
-  function showNameEntry() {
-    document.getElementById('nameEntryScreen').style.display = 'block';
-    document.getElementById('appShell').style.display = 'none';
+  async function enterGame() {
+    // Wire everything up regardless of login state
+    wireNameEntry();
+    wireActions();
+    wireRouting();
+
+    // If we have a player, load their picks
+    if (me && me.id) {
+      const mineRaw = await Store.get('players:' + me.id, true);
+      const mine = Store.safeParse(mineRaw, null);
+      if (mine) {
+        myPicks.top = mine.top || emptyPicks().top;
+        myPicks.bot = mine.bot || emptyPicks().bot;
+        myTiebreakers = mine.tiebreakers || {};
+      }
+    }
+
+    renderPlayerState();
+    handleRoute();
+    await refreshAll();
+    await refreshLiveTable();
+    setInterval(refreshAll, 4000);
+    setInterval(() => refreshLiveTable(false), 5 * 60 * 1000);
+  }
+
+  // Show / hide the inline name-entry card and the switch-player button based on `me`
+  function renderPlayerState() {
+    const inline = document.getElementById('inlineNameEntry');
+    const switchWrap = document.getElementById('switchPlayerWrap');
+    const pill = document.getElementById('navPlayerPill');
+    const nameEl = document.getElementById('navPlayerName');
+    const hasMe = !!(me && me.id);
+
+    if (inline) inline.style.display = hasMe ? 'none' : 'block';
+    if (switchWrap) switchWrap.style.display = hasMe ? 'block' : 'none';
+    if (pill) pill.style.display = hasMe ? 'inline-flex' : 'none';
+    if (nameEl && hasMe) nameEl.textContent = me.name;
+  }
+
+  function wireNameEntry() {
     const input = document.getElementById('nameInput');
-    setTimeout(() => input.focus(), 100);
+    const btn = document.getElementById('enterBtn');
+    if (!input || !btn) return;
     input.onkeydown = (e) => { if (e.key === 'Enter') handleEnter(); };
-    document.getElementById('enterBtn').onclick = handleEnter;
+    btn.onclick = handleEnter;
   }
 
   async function handleEnter() {
@@ -116,34 +156,9 @@
       tiebreakers: {},
       updatedAt: Date.now(),
     }, true);
-    await enterGame();
-  }
-
-  async function enterGame() {
-    document.getElementById('nameEntryScreen').style.display = 'none';
-    document.getElementById('appShell').style.display = 'block';
-    document.getElementById('navPlayerName').textContent = me.name;
-
-    // Load my existing picks
-    const mineRaw = await Store.get('players:' + me.id, true);
-    const mine = Store.safeParse(mineRaw, null);
-    if (mine) {
-      myPicks.top = mine.top || emptyPicks().top;
-      myPicks.bot = mine.bot || emptyPicks().bot;
-      myTiebreakers = mine.tiebreakers || {};
-    }
-
-    wireActions();
-    wireRouting();
-    handleRoute();
-
-    // Initial live fetch + periodic refresh
-    await refreshLiveTable();
+    renderPlayerState();
     await refreshAll();
-    setInterval(refreshAll, 4000);
-    setInterval(refreshLiveTable, (C.liveSource.cacheMinutes || 5) * 60 * 1000);
-
-    renderStorageMode();
+    toast(`Welcome, ${name}!`);
   }
 
   // ===============================================================
@@ -340,14 +355,6 @@
     const isLb = hash === '/leaderboard';
     const isBuilt = hash === '/built';
     const isGame = !isAdmin && !isLb && !isBuilt;
-
-    // Show app shell if we're on the name entry screen and navigating somewhere
-    const nameEntry = document.getElementById('nameEntryScreen');
-    const appShell = document.getElementById('appShell');
-    if (nameEntry && nameEntry.style.display !== 'none' && !isGame) {
-      nameEntry.style.display = 'none';
-      appShell.style.display = 'block';
-    }
 
     document.getElementById('page-game').style.display = isGame ? 'block' : 'none';
     document.getElementById('page-leaderboard').style.display = isLb ? 'block' : 'none';
@@ -1059,6 +1066,12 @@
   }
 
   async function savePicks() {
+    if (!me || !me.id) {
+      toast('Enter your name first');
+      const input = document.getElementById('nameInput');
+      if (input) { input.focus(); input.scrollIntoView({ behavior: 'smooth', block: 'center' }); }
+      return;
+    }
     const topFilled = myPicks.top.filter(Boolean).length;
     const botFilled = myPicks.bot.filter(Boolean).length;
     if (topFilled !== C.topN || botFilled !== C.botN) {
@@ -1094,8 +1107,18 @@
     await Store.delete('me', false);
     me = null;
     selectedTeam = null;
-    document.getElementById('nameInput').value = '';
-    showNameEntry();
+    myPicks = emptyPicks();
+    myTiebreakers = {};
+    const input = document.getElementById('nameInput');
+    if (input) input.value = '';
+    renderPlayerState();
+    renderSlots();
+    renderPool();
+    renderTiebreakers();
+    // Jump to game page so the entry card is visible
+    if (window.location.hash !== '#/' && window.location.hash !== '') {
+      window.location.hash = '#/';
+    }
   }
 
   async function updatePhase(phase) {
@@ -1294,10 +1317,16 @@
     await Store.delete('me', false);
     me = null;
     selectedTeam = null;
+    myPicks = emptyPicks();
+    myTiebreakers = {};
     sessionStorage.removeItem('pmd_admin');
     window.location.hash = '#/';
-    document.getElementById('nameInput').value = '';
-    showNameEntry();
+    const input = document.getElementById('nameInput');
+    if (input) input.value = '';
+    renderPlayerState();
+    renderSlots();
+    renderPool();
+    renderTiebreakers();
   }
 
   async function finalize() {
