@@ -129,6 +129,10 @@ body {
   background: var(--surface); border: 1px solid var(--border);
   border-radius: 8px; text-align: center;
 }
+.name-entry .brand-label {
+  display: block;
+  line-height: 1.8;
+}
 .name-entry h2 {
   font-family: 'Anton', sans-serif; font-size: 36px;
   text-transform: uppercase; letter-spacing: 1px; margin-bottom: 8px;

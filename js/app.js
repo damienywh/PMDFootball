@@ -17,7 +17,7 @@
   // VERSION — bump this every time the code changes.
   // Shown in the nav so users can tell which build they're looking at.
   // ===============================================================
-  const VERSION = 'v0.4.1';
+  const VERSION = 'v0.4.3';
 
   window.PMD = window.PMD || {};
   window.PMD.Config = {
@@ -76,35 +76,61 @@
   // ===============================================================
   // INIT
   // ===============================================================
+  // Global crash banner — if anything blows up, show the error on-screen
+  // instead of just silently in the console. Makes debugging on mobile
+  // possible since users can't easily open DevTools.
+  window.addEventListener('error', (e) => { showCrashBanner(e.message || e.error?.message, e.error?.stack); });
+  window.addEventListener('unhandledrejection', (e) => { showCrashBanner('Unhandled promise: ' + (e.reason?.message || String(e.reason)), e.reason?.stack); });
+
+  function showCrashBanner(msg, stack) {
+    try {
+      let banner = document.getElementById('crashBanner');
+      if (!banner) {
+        banner = document.createElement('div');
+        banner.id = 'crashBanner';
+        banner.style.cssText = 'position:fixed;top:0;left:0;right:0;background:#FF5555;color:#fff;padding:10px 14px;font:12px/1.4 monospace;z-index:99999;box-shadow:0 2px 8px rgba(0,0,0,0.5);max-height:40vh;overflow:auto;';
+        document.body.appendChild(banner);
+      }
+      banner.innerHTML = `<strong>⚠️ Error:</strong> ${String(msg).replace(/</g, '&lt;')}<br>
+        <span style="opacity:0.8;font-size:10px;">${(stack || '').toString().split('\n').slice(0, 4).join('<br>').replace(/</g, '&lt;')}</span>
+        <button onclick="document.getElementById('crashBanner').remove()" style="float:right;background:#fff;color:#000;border:0;padding:2px 8px;border-radius:3px;margin-left:10px;cursor:pointer;">×</button>`;
+    } catch (_) { /* even the banner failed; nothing we can do */ }
+  }
+
   async function init() {
-    // Populate baseline table
-    liveTableData = C.teams.map(t => ({ ...t, ...t.baseline }));
+    try {
+      // Populate baseline table — always works, no network needed
+      liveTableData = C.teams.map(t => ({ ...t, ...t.baseline }));
 
-    // Load me
-    me = Store.safeParse(await Store.get('me', false), null);
+      // Load me (purely local)
+      try { me = Store.safeParse(await Store.get('me', false), null); } catch (e) { console.warn('Load me failed', e); me = null; }
 
-    // Load shared game state
-    const gsRaw = await Store.get('game:state', true);
-    if (gsRaw) gameState = Object.assign(gameState, Store.safeParse(gsRaw, {}));
+      // Load shared game state (network call — OK to fail)
+      try {
+        const gsRaw = await Store.get('game:state', true);
+        if (gsRaw) gameState = Object.assign(gameState, Store.safeParse(gsRaw, {}));
+      } catch (e) { console.warn('Load game state failed', e); }
 
-    // Set version pill in nav + on entry screen
-    const vEl = document.getElementById('navVersion');
-    if (vEl) vEl.textContent = VERSION;
-    const vEl2 = document.getElementById('entryVersion');
-    if (vEl2) vEl2.textContent = VERSION;
+      // Set version pill in nav + on entry screen
+      const vEl = document.getElementById('navVersion');
+      if (vEl) vEl.textContent = VERSION;
+      const vEl2 = document.getElementById('entryVersion');
+      if (vEl2) vEl2.textContent = VERSION;
 
-    // Default: gated entry screen. User either joins with a name, or
-    // taps "Just browsing" to view leaderboard/admin/how-it's-built
-    // without a player identity.
-    if (me && me.id) {
-      await enterGame();
-    } else {
-      showNameEntry();
+      if (me && me.id) {
+        await enterGame();
+      } else {
+        showNameEntry();
+      }
+    } catch (e) {
+      showCrashBanner('init() crashed: ' + (e.message || e), e.stack);
+      // Last-resort: still show the name entry so the user can interact
+      try { showNameEntry(); } catch (_) {}
     }
   }
 
   function showNameEntry() {
-    document.getElementById('nameEntryScreen').style.display = 'flex';
+    document.getElementById('nameEntryScreen').style.display = 'block';
     document.getElementById('appShell').style.display = 'none';
     const input = document.getElementById('nameInput');
     if (input) {
@@ -121,29 +147,46 @@
   }
 
   async function enterGame() {
-    document.getElementById('nameEntryScreen').style.display = 'none';
-    document.getElementById('appShell').style.display = 'block';
+    try {
+      document.getElementById('nameEntryScreen').style.display = 'none';
+      document.getElementById('appShell').style.display = 'block';
 
-    wireInlineNameEntry();
-    wireActions();
-    wireRouting();
+      try { wireInlineNameEntry(); } catch (e) { console.warn('wireInlineNameEntry failed', e); }
+      try { wireActions(); } catch (e) { console.warn('wireActions failed', e); }
+      try { wireRouting(); } catch (e) { console.warn('wireRouting failed', e); }
 
-    if (me && me.id) {
-      const mineRaw = await Store.get('players:' + me.id, true);
-      const mine = Store.safeParse(mineRaw, null);
-      if (mine) {
-        myPicks.top = mine.top || emptyPicks().top;
-        myPicks.bot = mine.bot || emptyPicks().bot;
-        myTiebreakers = mine.tiebreakers || {};
+      if (me && me.id) {
+        try {
+          const mineRaw = await Store.get('players:' + me.id, true);
+          const mine = Store.safeParse(mineRaw, null);
+          if (mine) {
+            myPicks.top = mine.top || emptyPicks().top;
+            myPicks.bot = mine.bot || emptyPicks().bot;
+            myTiebreakers = mine.tiebreakers || {};
+          }
+        } catch (e) { console.warn('Load my picks failed', e); }
       }
-    }
 
-    renderPlayerState();
-    handleRoute();
-    await refreshAll();
-    await refreshLiveTable();
-    setInterval(refreshAll, 4000);
-    setInterval(() => refreshLiveTable(false), 5 * 60 * 1000);
+      try { renderPlayerState(); } catch (e) { console.warn('renderPlayerState failed', e); }
+      try { handleRoute(); } catch (e) { console.warn('handleRoute failed', e); }
+
+      // Render baseline table IMMEDIATELY so something visible even if ESPN fails
+      try {
+        renderLiveStatus();
+        renderLiveTable();
+        renderSlots();
+        renderPool();
+      } catch (e) { console.warn('Initial render failed', e); }
+
+      // Network calls — each wrapped so one failure doesn't cascade
+      refreshAll().catch(e => console.warn('refreshAll failed', e));
+      refreshLiveTable().catch(e => console.warn('refreshLiveTable failed', e));
+
+      setInterval(() => refreshAll().catch(e => console.warn('refreshAll tick', e)), 4000);
+      setInterval(() => refreshLiveTable(false).catch(e => console.warn('refreshLiveTable tick', e)), 5 * 60 * 1000);
+    } catch (e) {
+      showCrashBanner('enterGame() crashed: ' + (e.message || e), e.stack);
+    }
   }
 
   function renderPlayerState() {
