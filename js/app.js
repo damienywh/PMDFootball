@@ -17,7 +17,7 @@
   // VERSION — bump this every time the code changes.
   // Shown in the nav so users can tell which build they're looking at.
   // ===============================================================
-  const VERSION = 'v0.4.0';
+  const VERSION = 'v0.4.1';
 
   window.PMD = window.PMD || {};
   window.PMD.Config = {
@@ -87,23 +87,47 @@
     const gsRaw = await Store.get('game:state', true);
     if (gsRaw) gameState = Object.assign(gameState, Store.safeParse(gsRaw, {}));
 
-    // Set version pill in nav
+    // Set version pill in nav + on entry screen
     const vEl = document.getElementById('navVersion');
     if (vEl) vEl.textContent = VERSION;
+    const vEl2 = document.getElementById('entryVersion');
+    if (vEl2) vEl2.textContent = VERSION;
 
-    // App shell is always visible — no more gating on `me`.
-    // The Game page shows an inline name-entry card when `me` is null;
-    // Leaderboard / Admin / How it's built work fine without a player.
-    await enterGame();
+    // Default: gated entry screen. User either joins with a name, or
+    // taps "Just browsing" to view leaderboard/admin/how-it's-built
+    // without a player identity.
+    if (me && me.id) {
+      await enterGame();
+    } else {
+      showNameEntry();
+    }
+  }
+
+  function showNameEntry() {
+    document.getElementById('nameEntryScreen').style.display = 'flex';
+    document.getElementById('appShell').style.display = 'none';
+    const input = document.getElementById('nameInput');
+    if (input) {
+      setTimeout(() => input.focus(), 100);
+      input.onkeydown = (e) => { if (e.key === 'Enter') handleEnter(); };
+    }
+    document.getElementById('enterBtn').onclick = handleEnter;
+    const browseBtn = document.getElementById('browseOnlyBtn');
+    if (browseBtn) browseBtn.onclick = async (e) => {
+      e.preventDefault();
+      me = null;
+      await enterGame();
+    };
   }
 
   async function enterGame() {
-    // Wire everything up regardless of login state
-    wireNameEntry();
+    document.getElementById('nameEntryScreen').style.display = 'none';
+    document.getElementById('appShell').style.display = 'block';
+
+    wireInlineNameEntry();
     wireActions();
     wireRouting();
 
-    // If we have a player, load their picks
     if (me && me.id) {
       const mineRaw = await Store.get('players:' + me.id, true);
       const mine = Store.safeParse(mineRaw, null);
@@ -122,7 +146,6 @@
     setInterval(() => refreshLiveTable(false), 5 * 60 * 1000);
   }
 
-  // Show / hide the inline name-entry card and the switch-player button based on `me`
   function renderPlayerState() {
     const inline = document.getElementById('inlineNameEntry');
     const switchWrap = document.getElementById('switchPlayerWrap');
@@ -136,17 +159,21 @@
     if (nameEl && hasMe) nameEl.textContent = me.name;
   }
 
-  function wireNameEntry() {
-    const input = document.getElementById('nameInput');
-    const btn = document.getElementById('enterBtn');
+  function wireInlineNameEntry() {
+    // "Join" button inside the Game page when a browser decides to register
+    const input = document.getElementById('inlineNameInput');
+    const btn = document.getElementById('inlineJoinBtn');
     if (!input || !btn) return;
-    input.onkeydown = (e) => { if (e.key === 'Enter') handleEnter(); };
-    btn.onclick = handleEnter;
+    const join = async () => {
+      const name = input.value.trim();
+      if (!name) return;
+      await joinAs(name);
+    };
+    input.onkeydown = (e) => { if (e.key === 'Enter') join(); };
+    btn.onclick = join;
   }
 
-  async function handleEnter() {
-    const name = document.getElementById('nameInput').value.trim();
-    if (!name) return;
+  async function joinAs(name) {
     const id = 'p_' + Math.random().toString(36).slice(2, 10);
     me = { id, name };
     await Store.set('me', me, false);
@@ -159,6 +186,14 @@
     renderPlayerState();
     await refreshAll();
     toast(`Welcome, ${name}!`);
+  }
+
+  async function handleEnter() {
+    // The fullscreen gate's "Join Game" button
+    const name = document.getElementById('nameInput').value.trim();
+    if (!name) return;
+    await joinAs(name);
+    await enterGame();
   }
 
   // ===============================================================
@@ -630,7 +665,7 @@
     allPlayers = recs.map(r => Store.safeParse(r, null)).filter(Boolean);
     allPlayers.sort((a, b) => (a.name || '').localeCompare(b.name || ''));
 
-    const mine = allPlayers.find(p => p.id === me.id);
+    const mine = me && me.id ? allPlayers.find(p => p.id === me.id) : null;
     if (mine && saved) {
       myPicks.top = mine.top || myPicks.top;
       myPicks.bot = mine.bot || myPicks.bot;
@@ -671,7 +706,7 @@
     }
 
     root.innerHTML = allPlayers.map(p => {
-      const isMe = p.id === me.id;
+      const isMe = !!(me && p.id === me.id);
       const topFilled = (p.top || []).filter(Boolean).length;
       const botFilled = (p.bot || []).filter(Boolean).length;
       const total = C.topN + C.botN;
@@ -808,7 +843,7 @@
           <div class="lb-row ${podium}">
             <div class="lb-rank">${rank}</div>
             <div>
-              <div class="lb-name">${escapeHtml(x.p.name)}${x.p.id === me.id ? ' ★' : ''}</div>
+              <div class="lb-name">${escapeHtml(x.p.name)}${me && x.p.id === me.id ? ' ★' : ''}</div>
               <div class="lb-breakdown">${x.s.exact} EXACT · ${x.s.partial} PARTIAL · ${x.s.tbHits} TIEBREAKER</div>
             </div>
             <div class="lb-score">${x.s.total}</div>
@@ -843,7 +878,7 @@
           <div class="lb-row ${podium}">
             <div class="lb-rank">${rank}</div>
             <div>
-              <div class="lb-name">${escapeHtml(x.p.name)}${x.p.id === me.id ? ' ★' : ''}</div>
+              <div class="lb-name">${escapeHtml(x.p.name)}${me && x.p.id === me.id ? ' ★' : ''}</div>
               <div class="lb-breakdown">${x.s.exact} EXACT · ${x.s.partial} PARTIAL · ${x.s.tbHits} TIEBREAKER</div>
             </div>
             <div class="lb-score">${x.s.total}</div>
@@ -993,7 +1028,7 @@
       const botFilled = (p.bot || []).filter(Boolean).length;
       const complete = (topFilled + botFilled) === total;
       const tbCount = Object.keys(p.tiebreakers || {}).length;
-      const isMe = p.id === me.id;
+      const isMe = !!(me && p.id === me.id);
       return `
         <div class="admin-player-row">
           <div>
@@ -1111,14 +1146,8 @@
     myTiebreakers = {};
     const input = document.getElementById('nameInput');
     if (input) input.value = '';
-    renderPlayerState();
-    renderSlots();
-    renderPool();
-    renderTiebreakers();
-    // Jump to game page so the entry card is visible
-    if (window.location.hash !== '#/' && window.location.hash !== '') {
-      window.location.hash = '#/';
-    }
+    // Return to gated entry screen
+    showNameEntry();
   }
 
   async function updatePhase(phase) {
@@ -1373,7 +1402,7 @@
 
     const lines = [];
     lines.push(`🏆 ${C.longName.toUpperCase()} PREDICTIONS`);
-    lines.push(`Player: ${me.name}`);
+    lines.push(`Player: ${me ? me.name : '(not joined)'}`);
     lines.push('');
     lines.push(`${C.topLabel}:`);
     myPicks.top.forEach((abbr, i) => {

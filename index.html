@@ -18,8 +18,22 @@
 
 <div class="container">
 
-  <!-- ============ APP SHELL (always visible) ============ -->
-  <div id="appShell">
+  <!-- ============ NAME ENTRY SCREEN (default view) ============ -->
+  <!-- Fullscreen gate. Either enter a name, or tap "Just browsing" to go
+       straight to the app with no player identity — useful for colleagues
+       who just want to see the leaderboard or read the "how it's built" page
+       without typing anything. -->
+  <div id="nameEntryScreen" class="name-entry" style="display:none;">
+    <div class="brand-label" style="margin-bottom:24px;">● PMDF FOOTBALL PREDICTOR <span id="entryVersion" class="nav-version"></span> ●</div>
+    <h2>Enter the <span class="accent">Game</span></h2>
+    <p>Predict the finish of the season. Highest score wins.</p>
+    <input type="text" id="nameInput" placeholder="Your name" maxlength="20" autocomplete="off">
+    <button class="btn btn-primary" id="enterBtn" style="width:100%;">Join Game →</button>
+    <a href="#" id="browseOnlyBtn" class="browse-only-link">Just browsing — view leaderboard & admin</a>
+  </div>
+
+  <!-- ============ APP SHELL (shown after entering or browsing) ============ -->
+  <div id="appShell" style="display:none;">
 
     <!-- Navbar -->
     <nav class="navbar">
@@ -52,15 +66,16 @@
         </div>
       </div>
 
-      <!-- Inline name-entry card — shows when no player is loaded -->
+      <!-- Inline name-entry card — only shown when user enters via "Just browsing"
+           and later decides they want to join after all -->
       <div id="inlineNameEntry" class="inline-name-entry" style="display:none;">
         <div class="inline-name-entry-body">
-          <div class="brand-label" style="margin-bottom: 12px;">● JOIN THE GAME ●</div>
-          <h3>Enter your name to start picking</h3>
-          <p>You can browse the <a class="nav-link" data-route="/leaderboard">leaderboard</a>, <a class="nav-link" data-route="/admin">admin</a>, and <a class="nav-link" data-route="/built">how it's built</a> without joining — but to submit predictions, enter a name below.</p>
+          <div class="brand-label" style="margin-bottom: 12px;">● NOT JOINED YET ●</div>
+          <h3>Enter your name to submit picks</h3>
+          <p>Browsing mode is on — you can see everyone's picks but can't save your own until you join.</p>
           <div class="inline-name-form">
-            <input type="text" id="nameInput" placeholder="Your name" maxlength="20" autocomplete="off">
-            <button class="btn btn-primary" id="enterBtn">Join →</button>
+            <input type="text" id="inlineNameInput" placeholder="Your name" maxlength="20" autocomplete="off">
+            <button class="btn btn-primary" id="inlineJoinBtn">Join →</button>
           </div>
         </div>
       </div>

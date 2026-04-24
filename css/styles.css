@@ -767,6 +767,22 @@ body {
   vertical-align: middle;
 }
 
+/* Browse-only link on the gate screen */
+.browse-only-link {
+  display: block;
+  text-align: center;
+  color: var(--text-muted);
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 11px;
+  letter-spacing: 1px;
+  text-transform: uppercase;
+  text-decoration: none;
+  margin-top: 18px;
+  padding-top: 18px;
+  border-top: 1px solid var(--border);
+}
+.browse-only-link:hover { color: var(--accent); }
+
 /* ============ INLINE NAME ENTRY CARD ============ */
 .inline-name-entry {
   background: linear-gradient(135deg, rgba(255, 56, 100, 0.08), rgba(255, 211, 105, 0.04));
