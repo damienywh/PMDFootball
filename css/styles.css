@@ -207,26 +207,34 @@ body {
 .live-table {
   width: 100%; border-collapse: collapse;
   font-family: 'IBM Plex Mono', monospace; font-size: 12px;
-  min-width: 480px;
+  min-width: 640px;    /* was 480px — too narrow for 10 columns + padding */
+  table-layout: auto;
 }
 .live-table thead th {
   padding: 8px 6px; font-size: 9px; letter-spacing: 1.5px;
   color: var(--text-muted); text-transform: uppercase; font-weight: 600;
   text-align: right; border-bottom: 1px solid var(--border);
+  white-space: nowrap;
 }
 .live-table thead th:first-child, .live-table thead th.team-col { text-align: left; }
 .live-table tbody td {
   padding: 8px 6px; text-align: right; color: var(--text);
   border-bottom: 1px solid rgba(42, 50, 75, 0.5);
+  white-space: nowrap;       /* prevent numerals from wrapping across lines */
+  font-variant-numeric: tabular-nums;  /* fixed-width digits so 3-digit Pts aligns */
 }
 .live-table tbody td.team-col { text-align: left; }
 .live-table tbody tr.top-5 { background: linear-gradient(90deg, rgba(108, 255, 150, 0.08), transparent); }
 .live-table tbody tr.bot-3 { background: linear-gradient(90deg, rgba(255, 85, 85, 0.08), transparent); }
-.live-table .rank { color: var(--text-dim); font-weight: 600; }
+.live-table .rank { color: var(--text-dim); font-weight: 600; min-width: 22px; }
 .live-table tr.top-5 .rank { color: var(--pitch); }
 .live-table tr.bot-3 .rank { color: var(--danger); }
 .live-table .team-cell { display: flex; align-items: center; gap: 10px; }
-.live-table .pts-col { font-weight: 700; color: var(--accent); font-size: 14px; }
+.live-table .pts-col {
+  font-weight: 700; color: var(--accent); font-size: 14px;
+  min-width: 36px;           /* accommodates "100" without clipping */
+  padding-right: 10px;
+}
 .live-table .gd-pos { color: var(--pitch); }
 .live-table .gd-neg { color: var(--danger); }
 
@@ -753,6 +761,24 @@ body {
   border: 1px solid var(--border);
   color: var(--text-muted);
 }
+
+/* ============ LATE-ENTRY BADGE ============ */
+.late-badge {
+  display: inline-block;
+  margin-left: 8px;
+  padding: 1px 7px;
+  background: rgba(255, 211, 105, 0.15);
+  border: 1px solid var(--gold);
+  border-radius: 3px;
+  color: var(--gold);
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 9px;
+  letter-spacing: 1.5px;
+  font-weight: 600;
+  vertical-align: middle;
+}
+.roster-card.late { border-color: rgba(255, 211, 105, 0.4); }
+.admin-player-row.late { border-color: rgba(255, 211, 105, 0.4); }
 
 /* ============ NAV VERSION PILL ============ */
 .nav-version {

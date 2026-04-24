@@ -17,7 +17,7 @@
   // VERSION — bump this every time the code changes.
   // Shown in the nav so users can tell which build they're looking at.
   // ===============================================================
-  const VERSION = 'v0.4.3';
+  const VERSION = 'v0.5.0';
 
   window.PMD = window.PMD || {};
   window.PMD.Config = {
@@ -220,10 +220,13 @@
     const id = 'p_' + Math.random().toString(36).slice(2, 10);
     me = { id, name };
     await Store.set('me', me, false);
+    // joinedAt + firstLockedAt let us flag late entries. Existing records without
+    // joinedAt are treated as pre-lock originals — backward compatible.
     await Store.set('players:' + id, {
       id, name,
       top: myPicks.top, bot: myPicks.bot,
       tiebreakers: {},
+      joinedAt: Date.now(),
       updatedAt: Date.now(),
     }, true);
     renderPlayerState();
@@ -754,6 +757,10 @@
       const botFilled = (p.bot || []).filter(Boolean).length;
       const total = C.topN + C.botN;
       const complete = (topFilled + botFilled) === total;
+      // Late entry: joined after the admin's first lock. Existing players who
+      // have no joinedAt field (saved under earlier versions) are treated as
+      // pre-lock, i.e. never late.
+      const isLate = !!(gameState.firstLockedAt && p.joinedAt && p.joinedAt > gameState.firstLockedAt);
 
       let topRow, botRow;
       if (showPicks || isMe) {
@@ -771,9 +778,12 @@
       }
 
       return `
-        <div class="roster-card ${isMe ? 'me' : ''}">
+        <div class="roster-card ${isMe ? 'me' : ''} ${isLate ? 'late' : ''}">
           <div class="roster-head">
-            <div class="roster-name">${escapeHtml(p.name)}${isMe ? ' ★' : ''}</div>
+            <div class="roster-name">
+              ${escapeHtml(p.name)}${isMe ? ' ★' : ''}
+              ${isLate ? '<span class="late-badge" title="Joined after first lock">LATE</span>' : ''}
+            </div>
             <div class="roster-status ${complete ? 'complete' : 'pending'}">
               ${complete ? '● IN' : `○ ${topFilled + botFilled}/${total}`}
             </div>
@@ -1072,15 +1082,21 @@
       const complete = (topFilled + botFilled) === total;
       const tbCount = Object.keys(p.tiebreakers || {}).length;
       const isMe = !!(me && p.id === me.id);
+      const isLate = !!(gameState.firstLockedAt && p.joinedAt && p.joinedAt > gameState.firstLockedAt);
+      const joinedDate = p.joinedAt
+        ? new Date(p.joinedAt).toLocaleDateString('en-GB', { day: 'numeric', month: 'short' })
+        : 'pre-lock';
       return `
-        <div class="admin-player-row">
+        <div class="admin-player-row ${isLate ? 'late' : ''}">
           <div>
             <div class="admin-player-name">
               ${escapeHtml(p.name)}${isMe ? ' <span style="color:var(--accent);font-size:10px;">(YOU)</span>' : ''}
+              ${isLate ? '<span class="late-badge">LATE</span>' : ''}
             </div>
             <div class="admin-player-meta">
               ${complete ? '<span style="color:var(--pitch)">● COMPLETE</span>' : `<span style="color:var(--text-dim)">○ ${topFilled + botFilled}/${total} SLOTS</span>`}
               · ${tbCount} tiebreakers
+              · joined ${joinedDate}
               · ID: <code>${p.id}</code>
             </div>
           </div>
@@ -1195,6 +1211,12 @@
 
   async function updatePhase(phase) {
     gameState.phase = phase;
+    // Record the first time the game was locked, so we can mark late joiners.
+    // If the admin later reopens and re-locks, this timestamp is NOT updated —
+    // the "first lock" is the reference point for late-entry detection.
+    if (phase === 'locked' && !gameState.firstLockedAt) {
+      gameState.firstLockedAt = Date.now();
+    }
     await saveGameState();
     toast('Phase → ' + phase.toUpperCase());
     await refreshAll();
